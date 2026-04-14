@@ -30,7 +30,7 @@ from mcp import McpError
 from tavily import AsyncTavilyClient
 
 from open_deep_research.configuration import Configuration, SearchAPI
-from open_deep_research.prompts import summarize_webpage_prompt
+from open_deep_research.prompts import summarize_webpage_prompt, response_language_rule
 from open_deep_research.state import ResearchComplete, Summary
 
 ##########################
@@ -186,7 +186,8 @@ async def summarize_webpage(model: BaseChatModel, webpage_content: str) -> str:
         # Create prompt with current date context
         prompt_content = summarize_webpage_prompt.format(
             webpage_content=webpage_content, 
-            date=get_today_str()
+            date=get_today_str(), 
+            response_language_rule=response_language_rule,
         )
         
         # Execute summarization with timeout to prevent hanging

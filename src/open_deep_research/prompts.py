@@ -1,5 +1,9 @@
 """System prompts and prompt templates for the Deep Research agent."""
 
+response_language_rule = """IMPORTANT: Write the final response in Vietnamese.
+Do not translate or rewrite the prompt itself. Only the assistant's user-facing response should be in Vietnamese.
+"""
+
 clarify_with_user_instructions="""
 These are the messages that have been exchanged so far from the user asking for the report:
 <Messages>
@@ -32,6 +36,8 @@ If you do not need to ask a clarifying question, return:
 "need_clarification": false,
 "question": "",
 "verification": "<acknowledgement message that you will now start research based on the provided information>"
+
+{response_language_rule}
 
 For the verification message when no clarification is needed:
 - Acknowledge that you have sufficient information to proceed
@@ -74,6 +80,8 @@ Guidelines:
 - For academic or scientific queries, prefer linking directly to the original paper or official journal publication rather than survey papers or secondary summaries.
 - For people, try linking directly to their LinkedIn profile, or their personal website if they have one.
 - If the query is in a specific language, prioritize sources published in that language.
+
+{response_language_rule}
 """
 
 lead_researcher_prompt = """You are a research supervisor. Your job is to conduct research by calling the "ConductResearch" tool. For context, today's date is {date}.
@@ -133,7 +141,10 @@ After each ConductResearch tool call, use think_tool to analyze the results:
 - A separate agent will write the final report - you just need to gather information
 - When calling ConductResearch, provide complete standalone instructions - sub-agents can't see other agents' work
 - Do NOT use acronyms or abbreviations in your research questions, be very clear and specific
-</Scaling Rules>"""
+</Scaling Rules>
+
+{response_language_rule}
+"""
 
 research_system_prompt = """You are a research assistant conducting research on the user's input topic. For context, today's date is {date}.
 
@@ -219,6 +230,8 @@ The report should be structured like this:
 </Citation Rules>
 
 Critical Reminder: It is extremely important that any information that is even remotely relevant to the user's research topic is preserved verbatim (e.g. don't rewrite it, don't summarize it, don't paraphrase it).
+
+{response_language_rule}
 """
 
 compress_research_simple_human_message = """All above messages are about research conducted by an AI Researcher. Please clean up these findings.
@@ -237,6 +250,8 @@ For more context, here is all of the messages so far. Focus on the research brie
 CRITICAL: Make sure the answer is written in the same language as the human messages!
 For example, if the user's messages are in English, then MAKE SURE you write your response in English. If the user's messages are in Chinese, then MAKE SURE you write your entire response in Chinese.
 This is critical. The user will only understand the answer if it is written in the same language as their input message.
+
+{response_language_rule}
 
 Today's date is {date}.
 
@@ -365,4 +380,6 @@ Example 2 (for a scientific article):
 Remember, your goal is to create a summary that can be easily understood and utilized by a downstream research agent while preserving the most critical information from the original webpage.
 
 Today's date is {date}.
+
+{response_language_rule}
 """

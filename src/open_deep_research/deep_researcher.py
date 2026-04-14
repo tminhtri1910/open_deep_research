@@ -26,6 +26,7 @@ from open_deep_research.prompts import (
     final_report_generation_prompt,
     lead_researcher_prompt,
     research_system_prompt,
+    response_language_rule,
     transform_messages_into_research_topic_prompt,
 )
 from open_deep_research.state import (
@@ -96,7 +97,8 @@ async def clarify_with_user(state: AgentState, config: RunnableConfig) -> Comman
     # Step 3: Analyze whether clarification is needed
     prompt_content = clarify_with_user_instructions.format(
         messages=get_buffer_string(messages), 
-        date=get_today_str()
+        date=get_today_str(),
+        response_language_rule=response_language_rule,
     )
     response = await clarification_model.ainvoke([HumanMessage(content=prompt_content)])
     
@@ -149,7 +151,8 @@ async def write_research_brief(state: AgentState, config: RunnableConfig) -> Com
     # Step 2: Generate structured research brief from user messages
     prompt_content = transform_messages_into_research_topic_prompt.format(
         messages=get_buffer_string(state.get("messages", [])),
-        date=get_today_str()
+        date=get_today_str(),
+        response_language_rule=response_language_rule,
     )
     response = await research_model.ainvoke([HumanMessage(content=prompt_content)])
     
@@ -157,7 +160,8 @@ async def write_research_brief(state: AgentState, config: RunnableConfig) -> Com
     supervisor_system_prompt = lead_researcher_prompt.format(
         date=get_today_str(),
         max_concurrent_research_units=configurable.max_concurrent_research_units,
-        max_researcher_iterations=configurable.max_researcher_iterations
+        max_researcher_iterations=configurable.max_researcher_iterations,
+        response_language_rule=response_language_rule,
     )
     
     return Command(
@@ -544,7 +548,7 @@ async def compress_research(state: ResearcherState, config: RunnableConfig):
     while synthesis_attempts < max_attempts:
         try:
             # Create system prompt focused on compression task
-            compression_prompt = compress_research_system_prompt.format(date=get_today_str())
+            compression_prompt = compress_research_system_prompt.format(date=get_today_str(), response_language_rule=response_language_rule)
             messages = [SystemMessage(content=compression_prompt)] + researcher_messages
             
             # Execute compression
@@ -643,7 +647,8 @@ async def final_report_generation(state: AgentState, config: RunnableConfig):
                 research_brief=state.get("research_brief", ""),
                 messages=get_buffer_string(state.get("messages", [])),
                 findings=findings,
-                date=get_today_str()
+                date=get_today_str(),
+                response_language_rule=response_language_rule,
             )
             
             # Generate the final report
