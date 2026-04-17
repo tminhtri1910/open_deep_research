@@ -382,4 +382,5 @@ Remember, your goal is to create a summary that can be easily understood and uti
 Today's date is {date}.
 
 {response_language_rule}
+And keep the quote or excerpt in original language.
 """

@@ -55,6 +55,7 @@ logs/
 .env.development.local
 .env.test.local
 .env.production.local
+outputs/
 
 # Dependencies
 node_modules/
