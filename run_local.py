@@ -230,23 +230,47 @@ async def run_with_updates(question: str, graph, thread_id: str) -> None:
         "node_results": [],
     }
     session["runs"].append(run_record)
-    async for chunk in graph.astream(
+    current_node = None
+    async for namespace, chunk_type, chunk_data in graph.astream(
         {"messages": [{"role": "user", "content": question}]},
         {"configurable": {"thread_id": thread_id}},
-        stream_mode="updates",
+        stream_mode=["messages", "updates"],
+        subgraphs=True,
     ):
-        for node_name, payload in chunk.items():
-            run_record["node_results"].append(
-                {
-                    "node": node_name,
-                    "payload": payload,
-                }
-            )
-            _title(f"=={node_name}==", "bold blue")
-            _print_value(payload)
-            console.print()
-            if isinstance(payload, Mapping) and payload.get("final_report"):
-                final_report = payload["final_report"]
+        if chunk_type == "messages":
+            chunk, metadata = chunk_data
+            node = metadata.get("langgraph_node")
+            if node and node != current_node:
+                console.print()
+                _title(f"=={node} (streaming)==", "bold yellow")
+                current_node = node
+            
+            if hasattr(chunk, "content") and chunk.content:
+                if isinstance(chunk.content, str):
+                    sys.stdout.write(chunk.content)
+                    sys.stdout.flush()
+                elif isinstance(chunk.content, list):
+                    for item in chunk.content:
+                        if isinstance(item, dict) and item.get("type") == "text":
+                            sys.stdout.write(item.get("text", ""))
+                            sys.stdout.flush()
+
+        elif chunk_type == "updates":
+            if current_node:
+                console.print()
+                current_node = None
+            for node_name, payload in chunk_data.items():
+                run_record["node_results"].append(
+                    {
+                        "node": node_name,
+                        "payload": payload,
+                    }
+                )
+                _title(f"=={node_name} (result)==", "bold blue")
+                _print_value(payload)
+                console.print()
+                if isinstance(payload, Mapping) and payload.get("final_report"):
+                    final_report = payload["final_report"]
 
     if final_report:
         run_record["final_report"] = final_report
