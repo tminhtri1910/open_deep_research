@@ -114,12 +114,14 @@ jobs:
           IMPACT_REPORT: ${{ steps.dependents.outputs.dependents_report }}
         with:
           script: |
+            const output = `${process.env.IMPACT_REPORT}`;  
+
             // Use the GitHub REST API to create a comment on the current PR
             github.rest.issues.createComment({  
               issue_number: context.issue.number,  
               owner: context.repo.owner,  
               repo: context.repo.repo,  
-              body: process.env.IMPACT_REPORT
+              body: output
             })
 
       # - name: Extract dependents with code content

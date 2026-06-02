@@ -28,25 +28,65 @@ jobs:
       - name: Build graph  
         run: code-review-graph build  
         
-      - name: Detect changes  
-        id: review  
+      # - name: Detect changes  
+      #   id: review  
+      #   run: |  
+      #     OUTPUT=$(code-review-graph detect-changes --base origin/main --brief)  
+      #     echo "result<<EOF" >> $GITHUB_OUTPUT  
+      #     echo "$OUTPUT" >> $GITHUB_OUTPUT  
+      #     echo "EOF" >> $GITHUB_OUTPUT  
+        
+      # - name: Comment PR  
+      #   uses: actions/github-script@v7
+      #   env:
+      #     # IMPACT_REPORT: ${{ steps.impact.outputs.impact_report }}
+      #     REVIEW_RESULT: ${{ steps.review.outputs.result }}
+      #   with:  
+      #     script: |  
+      #       const output = `## Code Review Graph Analysis\n\n${process.env.REVIEW_RESULT}`;  
+      #       github.rest.issues.createComment({  
+      #         issue_number: context.issue.number,  
+      #         owner: context.repo.owner,  
+      #         repo: context.repo.repo,  
+      #         body: output  
+      #       })
+      
+      - name: Get impact radius (dependents)  
+        id: impact  
         run: |  
-          OUTPUT=$(code-review-graph detect-changes --base origin/main --brief)  
+          OUTPUT=$(code-review-graph detect-changes --base origin/main --detail-level minimal)  
           echo "result<<EOF" >> $GITHUB_OUTPUT  
           echo "$OUTPUT" >> $GITHUB_OUTPUT  
           echo "EOF" >> $GITHUB_OUTPUT  
         
-      - name: Comment PR  
-        uses: actions/github-script@v7
-        env:
-          # IMPACT_REPORT: ${{ steps.impact.outputs.impact_report }}
-          REVIEW_RESULT: ${{ steps.review.outputs.result }}
+      - name: Comment PR with dependents  
+        uses: actions/github-script@v7  
         with:  
           script: |  
-            const output = `## Code Review Graph Analysis\n\n${process.env.REVIEW_RESULT}`;  
+            const data = JSON.parse(process.env.IMPACT_RESULT);  
+            let comment = "## PR Dependents Analysis\n\n";  
+              
+            if (data.impacted_nodes && data.impacted_nodes.length > 0) {  
+              comment += `### Impacted Nodes (${data.impacted_nodes.length})\n\n`;  
+              data.impacted_nodes.slice(0, 20).forEach(node => {  
+                comment += `- **${node.name}** in \`${node.file_path}\`\n`;  
+              });  
+            }  
+              
+            if (data.impacted_files && data.impacted_files.length > 0) {  
+              comment += `\n### Impacted Files (${data.impacted_files.length})\n\n`;  
+              data.impacted_files.forEach(file => {  
+                comment += `- \`${file}\`\n`;  
+              });  
+            }  
+              
+            comment += `\n### Risk Level: ${data.risk || 'unknown'}\n`;  
+              
             github.rest.issues.createComment({  
               issue_number: context.issue.number,  
               owner: context.repo.owner,  
               repo: context.repo.repo,  
-              body: output  
-            })
+              body: comment  
+            })  
+        env:  
+          IMPACT_RESULT: ${{ steps.impact.outputs.result }}
