@@ -51,10 +51,10 @@ jobs:
       #         body: output  
       #       })
       
-      - name: Get impact radius (dependents)  
+       name: Get impact radius (dependents)  
         id: impact  
         run: |  
-          OUTPUT=$(code-review-graph detect-changes --base origin/main)  
+          OUTPUT=$(python scripts/get_impact_radius.py origin/main 2)  
           echo "result<<EOF" >> $GITHUB_OUTPUT  
           echo "$OUTPUT" >> $GITHUB_OUTPUT  
           echo "EOF" >> $GITHUB_OUTPUT  
@@ -80,7 +80,7 @@ jobs:
               });  
             }  
               
-            comment += `\n### Risk Level: ${data.risk || 'unknown'}\n`;  
+            comment += `\n${data.summary}\n`;  
               
             github.rest.issues.createComment({  
               issue_number: context.issue.number,  
