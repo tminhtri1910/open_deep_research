@@ -54,7 +54,7 @@ jobs:
       - name: Get impact radius (dependents)  
         id: impact  
         run: |  
-          OUTPUT=$(code-review-graph detect-changes --base origin/main --detail-level minimal)  
+          OUTPUT=$(code-review-graph detect-changes --base origin/main)  
           echo "result<<EOF" >> $GITHUB_OUTPUT  
           echo "$OUTPUT" >> $GITHUB_OUTPUT  
           echo "EOF" >> $GITHUB_OUTPUT  
