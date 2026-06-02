@@ -51,7 +51,7 @@ jobs:
       #         body: output  
       #       })
       
-       name: Get impact radius (dependents)  
+      - name: Get impact radius (dependents)  
         id: impact  
         run: |  
           OUTPUT=$(python scripts/get_impact_radius.py origin/main 2)  
