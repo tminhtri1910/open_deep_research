@@ -69,3 +69,5 @@ temp/
 
 .langgraph_api
 .venv/
+# Added by code-review-graph
+.code-review-graph/

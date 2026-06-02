@@ -1,0 +1,49 @@
+name: PR Review (Code-review-graph)
+  
+on:  
+  pull_request:  
+    branches: [main]  
+    types: [opened, synchronize, reopened]  
+  
+permissions:  
+  contents: read  
+  pull-requests: write  
+  
+jobs:  
+  review:  
+    runs-on: ubuntu-latest  
+    steps:  
+      - uses: actions/checkout@v4  
+        with:  
+          fetch-depth: 0  
+        
+      - name: Set up Python  
+        uses: actions/setup-python@v5  
+        with:  
+          python-version: "3.10"  
+        
+      - name: Install code-review-graph  
+        run: pip install code-review-graph  
+        
+      - name: Build graph  
+        run: code-review-graph build  
+        
+      - name: Detect changes  
+        id: review  
+        run: |  
+          OUTPUT=$(code-review-graph detect-changes --base origin/main --brief)  
+          echo "result<<EOF" >> $GITHUB_OUTPUT  
+          echo "$OUTPUT" >> $GITHUB_OUTPUT  
+          echo "EOF" >> $GITHUB_OUTPUT  
+        
+      - name: Comment PR  
+        uses: actions/github-script@v7  
+        with:  
+          script: |  
+            const output = `## Code Review Graph Analysis\n\n${steps.review.outputs.result}`;  
+            github.rest.issues.createComment({  
+              issue_number: context.issue.number,  
+              owner: context.repo.owner,  
+              repo: context.repo.repo,  
+              body: output  
+            })
