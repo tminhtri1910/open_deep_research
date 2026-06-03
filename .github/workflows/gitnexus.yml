@@ -1,4 +1,4 @@
-name: PR Impact Analysis  
+name: PR Impact Analysis (GitNexus)
   
 on:  
   pull_request:  
