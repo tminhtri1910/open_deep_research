@@ -51,36 +51,96 @@ jobs:
       #         body: output  
       #       })
       
-      - name: Get impact radius (dependents)  
-        id: impact  
+      # - name: Get impact radius (dependents)  
+      #   id: impact  
+      #   run: |  
+      #     OUTPUT=$(python scripts/get_impact_radius.py origin/main 2)  
+      #     echo "result<<EOF" >> $GITHUB_OUTPUT  
+      #     echo "$OUTPUT" >> $GITHUB_OUTPUT  
+      #     echo "EOF" >> $GITHUB_OUTPUT  
+        
+      # - name: Comment PR with dependents  
+      #   uses: actions/github-script@v7  
+      #   with:  
+      #     script: |  
+      #       const data = JSON.parse(process.env.IMPACT_RESULT);  
+      #       let comment = "## PR Dependents Analysis\n\n";  
+              
+      #       if (data.impacted_nodes && data.impacted_nodes.length > 0) {  
+      #         comment += `### Impacted Nodes (${data.impacted_nodes.length})\n\n`;  
+      #         data.impacted_nodes.slice(0, 20).forEach(node => {  
+      #           comment += `- **${node.name}** in \`${node.file_path}\`\n`;  
+      #         });  
+      #       }  
+              
+      #       if (data.impacted_files && data.impacted_files.length > 0) {  
+      #         comment += `\n### Impacted Files (${data.impacted_files.length})\n\n`;  
+      #         data.impacted_files.forEach(file => {  
+      #           comment += `- \`${file}\`\n`;  
+      #         });  
+      #       }  
+              
+      #       comment += `\n${data.summary}\n`;  
+              
+      #       github.rest.issues.createComment({  
+      #         issue_number: context.issue.number,  
+      #         owner: context.repo.owner,  
+      #         repo: context.repo.repo,  
+      #         body: comment  
+      #       })  
+      #   env:  
+      #     IMPACT_RESULT: ${{ steps.impact.outputs.result }}
+
+      - name: Analyze PR changes and dependents  
+        id: analysis  
         run: |  
-          OUTPUT=$(python scripts/get_impact_radius.py origin/main 2)  
+          OUTPUT=$(python scripts/pr_dependents_analysis.py origin/main)  
           echo "result<<EOF" >> $GITHUB_OUTPUT  
           echo "$OUTPUT" >> $GITHUB_OUTPUT  
           echo "EOF" >> $GITHUB_OUTPUT  
         
-      - name: Comment PR with dependents  
+      - name: Comment PR with analysis  
         uses: actions/github-script@v7  
         with:  
           script: |  
-            const data = JSON.parse(process.env.IMPACT_RESULT);  
-            let comment = "## PR Dependents Analysis\n\n";  
+            const data = JSON.parse(process.env.ANALYSIS_RESULT);  
+            let comment = "## PR Analysis\n\n";  
               
+            // Summary  
+            comment += `### Summary\n${data.summary}\n\n`;  
+            comment += `**Risk Score**: ${data.risk_score.toFixed(2)}\n\n`;  
+              
+            // Changed functions (line-level precision)  
+            if (data.changed_functions && data.changed_functions.length > 0) {  
+              comment += `### Changed Functions (${data.changed_functions.length})\n\n`;  
+              data.changed_functions.slice(0, 10).forEach(func => {  
+                comment += `- **${func.name}** (risk: ${func.risk_score.toFixed(2)})\n`;  
+              });  
+            }  
+              
+            // Dependents (impacted nodes)  
             if (data.impacted_nodes && data.impacted_nodes.length > 0) {  
-              comment += `### Impacted Nodes (${data.impacted_nodes.length})\n\n`;  
+              comment += `\n### Impacted Nodes/Dependents (${data.impacted_nodes.length})\n\n`;  
               data.impacted_nodes.slice(0, 20).forEach(node => {  
                 comment += `- **${node.name}** in \`${node.file_path}\`\n`;  
               });  
             }  
               
+            // Affected files  
             if (data.impacted_files && data.impacted_files.length > 0) {  
-              comment += `\n### Impacted Files (${data.impacted_files.length})\n\n`;  
+              comment += `\n### Affected Files (${data.impacted_files.length})\n\n`;  
               data.impacted_files.forEach(file => {  
                 comment += `- \`${file}\`\n`;  
               });  
             }  
               
-            comment += `\n${data.summary}\n`;  
+            // Test gaps  
+            if (data.test_gaps && data.test_gaps.length > 0) {  
+              comment += `\n### Test Gaps (${data.test_gaps.length})\n\n`;  
+              data.test_gaps.slice(0, 5).forEach(gap => {  
+                comment += `- **${gap.name}** in \`${gap.file}\`\n`;  
+              });  
+            }  
               
             github.rest.issues.createComment({  
               issue_number: context.issue.number,  
@@ -89,4 +149,4 @@ jobs:
               body: comment  
             })  
         env:  
-          IMPACT_RESULT: ${{ steps.impact.outputs.result }}
+          ANALYSIS_RESULT: ${{ steps.analysis.outputs.result }}
