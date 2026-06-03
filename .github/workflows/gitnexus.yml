@@ -29,42 +29,69 @@ jobs:
         run: gitnexus analyze  
   
       - name: Detect changes from PR diff  
-        run: |  
-          gitnexus detect-changes \  
-            --scope compare \  
-            --base-ref ${{ github.base_ref }} > changed-symbols.txt
+        run: gitnexus detect-changes --scope compare --base-ref ${{ github.base_ref }} > changed-symbols.txt  
   
-      - name: Get dependents for changed symbols  
+      - name: Parse and analyze impact  
         run: |  
-          # Parse changed symbols and run impact analysis   
           node -e '  
+            const fs = require("fs");  
             const { execSync } = require("child_process");  
-            const result = execSync("gitnexus detect-changes --scope compare --base-ref main", { encoding: "utf8" });  
-            console.log(result);  
-            
-            result.changedSymbols.forEach(sym => {  
-              console.log(`\n=== Dependents for ${sym.name} ===`);  
-              try {  
-                const result = execSync(  
-                  `gitnexus impact "${sym.name}" --direction upstream --depth 3 --json`,  
-                  { encoding: "utf8" }  
-                );  
-                console.log(result);  
-              } catch (e) {  
-                console.log("Error:", e.message);  
+            const output = fs.readFileSync("changed-symbols.txt", "utf8");  
+            console.log(output);  
+              
+            // Extract symbol names from output and run impact  
+            const lines = output.split("\n");  
+            const impactResults = []; 
+
+            lines.forEach(line => {  
+              const match = line.match(/(\w+)\s+(\w+)\s+→/);  
+              if (match) {  
+                const symbolName = match[2];  
+                try {  
+                  const result = execSync(  
+                    `gitnexus impact "${symbolName}" --direction upstream --depth 3`,  
+                    { encoding: "utf8" }  
+                  );  
+                  impactResults.push({ symbol: symbolName, result });  
+                  console.log(result);  
+                } catch (e) {  
+                  impactResults.push({ symbol: symbolName, error: e.message }); 
+                  console.log("Error analyzing", symbolName, e.message);  
+                }  
               }  
             });  
-          '  
+
+            // Save results for comment step  
+            fs.writeFileSync("impact-results.json", JSON.stringify(impactResults));
+          '
   
       - name: Comment PR with impact report  
         uses: actions/github-script@v7  
         with:  
           script: |  
             const fs = require("fs");  
-            const report = fs.readFileSync("impact-report.md", "utf8");  
-            github.rest.issues.createComment({  
+            const impactResults = JSON.parse(fs.readFileSync("impact-results.json", "utf8"));  
+              
+            let body = "## 🔍 PR Impact Analysis\n\n";  
+              
+            if (impactResults.length === 0) {  
+              body += "No changed symbols detected.\n";  
+            } else {  
+              body += `Analyzed **${impactResults.length}** changed symbols:\n\n`;  
+                
+              impactResults.forEach(({ symbol, result, error }) => {  
+                body += `### ${symbol}\n`;  
+                if (error) {  
+                  body += `❌ Error: ${error}\n\n`;  
+                } else {  
+                  body += "```\n" + result + "\n```\n\n";  
+                }  
+              });  
+            }  
+              
+            await github.rest.issues.createComment({  
               issue_number: context.issue.number,  
               owner: context.repo.owner,  
               repo: context.repo.repo,  
-              body: report  
+              body: body  
             });
