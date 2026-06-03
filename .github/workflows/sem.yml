@@ -37,91 +37,66 @@ jobs:
           cat diff.json >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
 
-      # Step 4: Extract dependents
-      - name: Extract dependents with code content (Markdown)
+      # Step 4: Extract dependents data (JSON)
+      - name: Extract dependents data
         id: dependents
         run: |
-          echo "# Dependents with Code Content" > dependents_report.md  
-            
-          # Extract all changed entities  
+          echo "[" > data.json
+          first=true
+          
           jq -c '.changes[]' diff.json | while read -r change; do  
             entity_name=$(echo "$change" | jq -r '.entityName')  
             file_path=$(echo "$change" | jq -r '.filePath')  
               
-            echo "## $entity_name ($file_path)" >> dependents_report.md  
-              
-            # Get context with --file flag  
             if sem context "$entity_name" --file "$file_path" --json > context.json 2>/dev/null; then  
-              # Extract dependents and format separately  
-              jq -r '.entries[] |   
-                select(.role == "direct_dependent" or .role == "transitive_dependent") |   
-                @json' context.json | while read -r dep; do  
-                name=$(echo "$dep" | jq -r '.name')  
-                type=$(echo "$dep" | jq -r '.type')  
-                file=$(echo "$dep" | jq -r '.file')  
-                role=$(echo "$dep" | jq -r '.role')  
-                content=$(echo "$dep" | jq -r '.content')  
-                  
-                echo "### $name ($type)" >> dependents_report.md  
-                echo "File: $file" >> dependents_report.md  
-                echo "Role: $role" >> dependents_report.md  
-                echo '```' >> dependents_report.md  
-                echo "$content" >> dependents_report.md  
-                echo '```' >> dependents_report.md  
-              done  
+              deps=$(jq '[.entries[] | select(.role == "direct_dependent" or .role == "transitive_dependent")]' context.json)
+              
+              if [ "$deps" != "[]" ]; then
+                if [ "$first" = true ]; then
+                  first=false
+                else
+                  echo "," >> data.json
+                fi
+                jq -n --arg name "$entity_name" --arg path "$file_path" --argjson deps "$deps" '{entityName: $name, filePath: $path, dependents: $deps}' >> data.json
+              fi
             fi 
-              
-            echo "" >> dependents_report.md  
           done
+          
+          echo "]" >> data.json
 
-          # Expose the Markdown report content as a step output variable
-          echo "dependents_report<<EOF" >> $GITHUB_OUTPUT
-          cat dependents_report.md >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
-
-      - name: Extract dependents with code content (JSON)
-        id: dependents_json
-        run: |
-          echo '{"dependents": [' > dependents.json  
-            
-          jq -c '.changes[]' diff.json | while read -r change; do  
-            entity_name=$(echo "$change" | jq -r '.entityName')  
-            file_path=$(echo "$change" | jq -r '.filePath')  
-              
-            if sem context "$entity_name" --file "$file_path" --json > context.json 2>/dev/null; then  
-              # Extract dependents as JSON  
-              jq -c '.entries[] | select(.role == "direct_dependent" or .role == "transitive_dependent")' context.json | while read -r dep; do  
-                  
-                # Add changed_entity field  
-                echo "$dep" | jq -c --arg changed "$entity_name" '. + {changed_entity: $changed}'  
-                  
-              done  
-            fi  
-          done | paste -sd ',' - >> dependents.json  
-            
-          echo ']}' >> dependents.json
-
-          # Expose the JSON output as a step output variable
-          echo "dependents_report<<EOF" >> $GITHUB_OUTPUT
-          cat dependents.json >> $GITHUB_OUTPUT
+          # Expose the JSON data as a step output variable
+          echo "dependents_data<<EOF" >> $GITHUB_OUTPUT
+          cat data.json >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
 
       # Step 5: Post the generated impact report as a comment on the pull request
       - name: Comment PR with impact report
         uses: actions/github-script@v7
         env:
-          # IMPACT_REPORT: ${{ steps.impact.outputs.impact_report }}
-          IMPACT_REPORT: ${{ steps.dependents.outputs.dependents_report }}
+          IMPACT_REPORT: ${{ steps.dependents.outputs.dependents_data }}
         with:
           script: |
-            const output = `${process.env.IMPACT_REPORT}`;  
+            const data = JSON.parse(process.env.IMPACT_REPORT);  
+            let comment = "# Dependents with Code Content\n\n";  
+            
+            data.forEach(entity => {
+              comment += `## ${entity.entityName} (${entity.filePath})\n\n`;
+              entity.dependents.forEach(dep => {
+                comment += `### ${dep.name} (${dep.type})\n`;
+                comment += `File: ${dep.file}\n`;
+                comment += `Role: ${dep.role}\n`;
+                comment += '```\n';
+                comment += `${dep.content}\n`;
+                comment += '```\n\n';
+              });
+            });
 
             // Use the GitHub REST API to create a comment on the current PR
             github.rest.issues.createComment({  
               issue_number: context.issue.number,  
               owner: context.repo.owner,  
               repo: context.repo.repo,  
-              body: output
+              body: comment
             })
 
       # - name: Extract dependents with code content

@@ -1,0 +1,67 @@
+name: PR Impact Analysis  
+  
+on:  
+  pull_request:  
+    types: [opened, synchronize, reopened]  
+  
+jobs:  
+  analyze-pr-impact:  
+    runs-on: ubuntu-latest  
+    steps:  
+      - name: Checkout code  
+        uses: actions/checkout@v4  
+        with:  
+          fetch-depth: 0  # Need full history for diff  
+  
+      - name: Setup Node.js  
+        uses: actions/setup-node@v4  
+        with:  
+          node-version: '20'  
+  
+      - name: Install GitNexus  
+        run: npm install -g gitnexus  
+  
+      - name: Index repository  
+        run: gitnexus analyze  
+  
+      - name: Detect changes from PR diff  
+        run: |  
+          gitnexus detect-changes \  
+            --scope compare \  
+            --base-ref ${{ github.base_ref }} \  
+            --output changed-symbols.json  
+  
+      - name: Get dependents for changed symbols  
+        run: |  
+          # Parse changed symbols and run impact analysis  
+          node -e '  
+            const fs = require("fs");  
+            const { execSync } = require("child_process");  
+            const changes = JSON.parse(fs.readFileSync("changed-symbols.json", "utf8"));  
+              
+            changes.changedSymbols.forEach(sym => {  
+              console.log(`\n=== Dependents for ${sym.name} ===`);  
+              try {  
+                const result = execSync(  
+                  `gitnexus impact "${sym.name}" --direction upstream --depth 3 --json`,  
+                  { encoding: "utf8" }  
+                );  
+                console.log(result);  
+              } catch (e) {  
+                console.log("Error:", e.message);  
+              }  
+            });  
+          '  
+  
+      - name: Comment PR with impact report  
+        uses: actions/github-script@v7  
+        with:  
+          script: |  
+            const fs = require("fs");  
+            const report = fs.readFileSync("impact-report.md", "utf8");  
+            github.rest.issues.createComment({  
+              issue_number: context.issue.number,  
+              owner: context.repo.owner,  
+              repo: context.repo.repo,  
+              body: report  
+            });
