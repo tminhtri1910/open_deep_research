@@ -3,6 +3,10 @@ name: PR Impact Analysis (GitNexus)
 on:  
   pull_request:  
     types: [opened, synchronize, reopened]  
+
+permissions:  
+  contents: read  
+  pull-requests: write  
   
 jobs:  
   analyze-pr-impact:  
@@ -28,18 +32,17 @@ jobs:
         run: |  
           gitnexus detect-changes \  
             --scope compare \  
-            --base-ref ${{ github.base_ref }} \  
-            --output changed-symbols.json  
+            --base-ref ${{ github.base_ref }} > changed-symbols.txt
   
       - name: Get dependents for changed symbols  
         run: |  
-          # Parse changed symbols and run impact analysis  
+          # Parse changed symbols and run impact analysis   
           node -e '  
-            const fs = require("fs");  
             const { execSync } = require("child_process");  
-            const changes = JSON.parse(fs.readFileSync("changed-symbols.json", "utf8"));  
-              
-            changes.changedSymbols.forEach(sym => {  
+            const result = execSync("gitnexus detect-changes --scope compare --base-ref main", { encoding: "utf8" });  
+            console.log(result);  
+            
+            result.changedSymbols.forEach(sym => {  
               console.log(`\n=== Dependents for ${sym.name} ===`);  
               try {  
                 const result = execSync(  

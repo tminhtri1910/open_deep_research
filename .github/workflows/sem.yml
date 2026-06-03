@@ -6,6 +6,10 @@ on:
   pull_request:
     types: [opened, reopened, ready_for_review]
 
+permissions:
+  pull-requests: write
+  contents: read
+
 jobs:
   impact-analysis:
     # Run the job on the latest Ubuntu runner
