@@ -26,17 +26,25 @@ jobs:
         run: npm install -g gitnexus  
   
       - name: Index repository  
-        run: gitnexus analyze  
+        run: gitnexus analyze --verbose
   
-      - name: Detect changes from PR diff  
-        run: gitnexus detect-changes --scope compare --base-ref origin/${{ github.base_ref }} > changed-symbols.txt  
+      - name: Detect changes from PR diff 
+        id: diff 
+        run: | 
+          gitnexus detect-changes --scope compare --base-ref origin/${{ github.base_ref }} > changed-symbols.txt
+          echo "diff_output<<EOF" >> $GITHUB_OUTPUT
+          cat changed-symbols.txt >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT  
+
   
       - name: Parse and analyze impact  
+        env: CHANGED_SYMBOLS: $ {{ GITHUB_OUTPUT.diff.outputs.diff_output }}
         run: |  
           node -e '  
             const fs = require("fs");  
             const { execSync } = require("child_process");  
-            const output = fs.readFileSync("changed-symbols.txt", "utf8");  
+            const output = fs.readFileSync("changed-symbols.txt", "utf8"); 
+            console.log("==changed-symbols.txt==") 
             console.log(output);  
               
             // Extract symbol names from output and run impact  
@@ -72,7 +80,7 @@ jobs:
             const fs = require("fs");  
             const impactResults = JSON.parse(fs.readFileSync("impact-results.json", "utf8"));  
               
-            let body = "## 🔍 PR Impact Analysis\n\n";  
+            let body = "## 🔍 PR Impact Analysis (GitNexus)\n\n";  
               
             if (impactResults.length === 0) {  
               body += "No changed symbols detected.\n";  
