@@ -38,7 +38,8 @@ jobs:
 
   
       - name: Parse and analyze impact  
-        env: CHANGED_SYMBOLS: $ {{ GITHUB_OUTPUT.diff.outputs.diff_output }}
+        env:
+          CHANGED_SYMBOLS: ${{ steps.diff.outputs.diff_output }}
         run: |  
           node -e '  
             const fs = require("fs");  
