@@ -1,5 +1,5 @@
 # Name of the GitHub Action workflow
-name: PR Impact Analysis (sem)
+name: PR Impact Analysis (sem + pr-agent)
 
 # Trigger the workflow on pull requests targeting the 'main' branch
 on:
