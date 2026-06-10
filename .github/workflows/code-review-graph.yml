@@ -104,7 +104,7 @@ jobs:
         with:  
           script: |  
             const data = JSON.parse(process.env.ANALYSIS_RESULT);  
-            let comment = "## PR Analysis\n\n";  
+            let comment = "## PR Analysis (Code-review-graph)\n\n";  
               
             // Summary  
             comment += `### Summary\n${data.summary}\n\n`;  

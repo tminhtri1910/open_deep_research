@@ -81,7 +81,7 @@ jobs:
         with:
           script: |
             const data = JSON.parse(process.env.IMPACT_REPORT);  
-            let comment = "# Dependents with Code Content\n\n";  
+            let comment = "# Dependents with Code Content (sem)\n\n";  
             
             data.forEach(entity => {
               comment += `## ${entity.entityName} (${entity.filePath})\n\n`;
