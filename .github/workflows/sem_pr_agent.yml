@@ -74,16 +74,14 @@ jobs:
           cat data.json >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
 
-      - name: Run pr agent on every pull request, respond to user comments
-        steps:
-          - name: PR Agent action step
-            id: pragent
-            uses: tminhtri1910/pr-agent@main
-            env:
-              OPENAI_KEY: ${{ secrets.OPENAI_KEY }}
-              GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-              # Map the output from the previous step to an environment variable
-              DEPENDENTS_DATA_JSON: ${{ steps.dependents.outputs.dependents_data }}
+      - name: PR Agent action step
+        id: pragent
+        uses: tminhtri1910/pr-agent@main
+        env:
+          OPENAI_KEY: ${{ secrets.OPENAI_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Map the output from the previous step to an environment variable
+          DEPENDENTS_DATA_JSON: ${{ steps.dependents.outputs.dependents_data }}
               
       # Step 5: Post the generated impact report as a comment on the pull request
       - name: Comment PR with impact report
