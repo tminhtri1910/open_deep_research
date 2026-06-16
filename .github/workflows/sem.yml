@@ -47,33 +47,8 @@ jobs:
         env: 
           DIFF_OUTPUT: ${{ steps.diff.outputs.diff_output }}
         run: |
-          echo "[" > data.json
-          first=true
+          sem impact "Configuration" --file "src/open_deep_research/configuration.py" --mode dependents --json > data.json 
           
-          jq -c '.changes[]' diff.json | while read -r change; do  
-            entity_name=$(echo "$change" | jq -r '.entityName')  
-            file_path=$(echo "$change" | jq -r '.filePath')  
-              
-            if sem context "$entity_name" --file "$file_path" --json > context.json; then  
-              deps=$(jq '[.entries[] | select(.role == "direct_dependent" or .role == "transitive_dependent")]' context.json)
-              
-              if [ "$deps" != "[]" ]; then
-                if [ "$first" = true ]; then
-                  first=false
-                else
-                  echo "," >> data.json
-                fi
-                jq -n --arg name "$entity_name" --arg path "$file_path" --argjson deps "$deps" '{entityName: $name, filePath: $path, dependents: $deps}' >> data.json
-              fi
-              
-            else  
-              echo "Failed to get context for $entity_name in $file_path" >&2  
-              cat context.json >&2  
-            fi
-
-          done
-          
-          echo "]" >> data.json
 
           # Expose the JSON data as a step output variable
           echo "dependents_data<<EOF" >> $GITHUB_OUTPUT

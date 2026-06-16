@@ -1,9 +1,9 @@
 name: PR Review (Code-review-graph)
   
 on:  
-  pull_request:  
-    branches: [main]  
-    types: [opened, synchronize, reopened]  
+  # pull_request:  
+  #   branches: [main]  
+  #   types: [opened, synchronize, reopened]  
   
 permissions:  
   contents: read  
