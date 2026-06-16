@@ -37,9 +37,11 @@ jobs:
         run: |
           # Compare origin/main with the current HEAD and output results to diff.json
           sem diff --from origin/${{ github.base_ref }} --to HEAD --format json > diff.json  
+          sem diff --from origin/${{ github.base_ref }} --to HEAD --format markdown > diff.md  
+
           # Expose the JSON output as a step output variable for potential downstream use
           echo "diff_output<<EOF" >> $GITHUB_OUTPUT
-          cat diff.json >> $GITHUB_OUTPUT
+          cat diff.md >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
 
       # Step 4: Extract dependents data (JSON)
