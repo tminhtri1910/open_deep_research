@@ -47,7 +47,7 @@ jobs:
         env: 
           DIFF_OUTPUT: ${{ steps.diff.outputs.diff_output }}
         run: |
-          sem impact "Configuration" --file "src/open_deep_research/configuration.py" --mode dependents --json > data.json 
+          sem impact "Configuration" --file "src/open_deep_research/configuration.py" --json > data.json 
           
 
           # Expose the JSON data as a step output variable
