@@ -35,7 +35,7 @@ jobs:
         id: diff
         run: |
           # Compare origin/main with the current HEAD and output results to diff.json
-          sem diff --from origin/${{ github.base_ref }} --to HEAD --format json > diff.json  
+          sem diff --from origin/${{ github.base_ref }} --to HEAD --format json | jq '.'> diff.json  
           # Expose the JSON output as a step output variable for potential downstream use
           echo "diff_output<<EOF" >> $GITHUB_OUTPUT
           cat diff.json >> $GITHUB_OUTPUT
@@ -44,6 +44,8 @@ jobs:
       # Step 4: Extract dependents data (JSON)
       - name: Extract dependents data
         id: dependents
+        env: 
+          DIFF_OUTPUT: ${{ steps.diff.outputs.diff_output }}
         run: |
           echo "[" > data.json
           first=true
@@ -52,7 +54,7 @@ jobs:
             entity_name=$(echo "$change" | jq -r '.entityName')  
             file_path=$(echo "$change" | jq -r '.filePath')  
               
-            if sem context "$entity_name" --file "$file_path" --json > context.json 2>/dev/null; then  
+            if sem context "$entity_name" --file "$file_path" --json > context.json; then  
               deps=$(jq '[.entries[] | select(.role == "direct_dependent" or .role == "transitive_dependent")]' context.json)
               
               if [ "$deps" != "[]" ]; then
@@ -63,7 +65,12 @@ jobs:
                 fi
                 jq -n --arg name "$entity_name" --arg path "$file_path" --argjson deps "$deps" '{entityName: $name, filePath: $path, dependents: $deps}' >> data.json
               fi
-            fi 
+              
+            else  
+              echo "Failed to get context for $entity_name in $file_path" >&2  
+              cat context.json >&2  
+            fi
+
           done
           
           echo "]" >> data.json
