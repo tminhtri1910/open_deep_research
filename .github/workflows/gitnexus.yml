@@ -1,8 +1,8 @@
 name: PR Impact Analysis (GitNexus)
   
 on:  
-  # pull_request:  
-  #   types: [opened, synchronize, reopened]  
+  pull_request:  
+    types: [opened, synchronize, reopened]  
 
 permissions:  
   contents: read  
@@ -28,24 +28,24 @@ jobs:
       - name: Index repository  
         run: gitnexus analyze --verbose
 
-      - name: Detect files diff
-        id: diff
-        run: |
-          OUTPUT=$(python scripts/get_file_diff.py origin/${{ github.base_ref }})
-          echo "$OUTPUT" > changed-symbols.txt
-          cat changed-symbols.txt
+      # - name: Detect files diff
+      #   id: diff
+      #   run: |
+      #     OUTPUT=$(python scripts/get_file_diff.py origin/${{ github.base_ref }})
+      #     echo "$OUTPUT" > changed-symbols.txt
+      #     cat changed-symbols.txt
           
-          echo "diff_output<<EOF" >> $GITHUB_OUTPUT
-          echo "$OUTPUT" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
-          
-      # - name: Detect changes from PR diff 
-      #   id: diff 
-      #   run: | 
-      #     gitnexus detect-changes --scope compare --base-ref origin/${{ github.base_ref }} > changed-symbols.txt
       #     echo "diff_output<<EOF" >> $GITHUB_OUTPUT
-      #     cat changed-symbols.txt >> $GITHUB_OUTPUT
-      #     echo "EOF" >> $GITHUB_OUTPUT  
+      #     echo "$OUTPUT" >> $GITHUB_OUTPUT
+      #     echo "EOF" >> $GITHUB_OUTPUT
+          
+      - name: Detect changes from PR diff 
+        id: diff 
+        run: | 
+          gitnexus detect-changes --scope compare --base-ref origin/${{ github.base_ref }} > changed-symbols.txt
+          echo "diff_output<<EOF" >> $GITHUB_OUTPUT
+          cat changed-symbols.txt >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT  
 
   
       - name: Parse and analyze impact  
