@@ -50,7 +50,7 @@ jobs:
           echo "[" > data.json
           first=true
           
-          jq -c '.changes[]' diff.json | while read -r change; do  
+          while read -r change; do  
             entity_name=$(echo "$change" | jq -r '.entityName')  
             file_path=$(echo "$change" | jq -r '.filePath')  
               
@@ -60,7 +60,7 @@ jobs:
               # Kiểm tra nếu direct_deps không rỗng trước khi loop  
               if [ -n "$direct_deps" ] && [ "$direct_deps" != "[]" ]; then 
                 # Xử lý từng direct_dependent 
-                echo "$direct_deps" | jq -c '.[]' | while read -r direct_dep; do  
+                while read -r direct_dep; do  
                   dep_name=$(echo "$direct_dep" | jq -r '.name')  
                   dep_file=$(echo "$direct_dep" | jq -r '.file') 
 
@@ -77,7 +77,7 @@ jobs:
                       jq -n --arg name "$entity_name" --arg path "$file_path" --argjson direct "$direct_deps" --argjson transitive "$transitive_deps" '{entityName: $name, filePath: $path, direct_dependents: $direct, transitive_dependents: $transitive}' >> data.json
                     fi
                   fi
-                done
+                done < <(echo "$direct_deps" | jq -c '.[]')
               fi
 
             else  
@@ -85,7 +85,7 @@ jobs:
               cat context.json >&2  
             fi
 
-          done
+          done < <(jq -c '.changes[]' diff.json)
           
           echo "]" >> data.json
 
