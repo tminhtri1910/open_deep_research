@@ -1,8 +1,8 @@
 name: PR Impact Analysis (GitNexus)
   
 on:  
-  pull_request:  
-    types: [opened, synchronize, reopened]  
+  # pull_request:  
+  #   types: [opened, synchronize, reopened]  
 
 permissions:  
   contents: read  
