@@ -106,7 +106,7 @@ jobs:
             
             data.forEach(entity => {
               comment += `## ${entity.entityName} (${entity.filePath})\n\n`;
-              entity.direct_dependent.forEach(dep => {
+              entity.direct_dependents.forEach(dep => {
                 comment += `### ${dep.name} (${dep.type})\n`;
                 comment += `File: ${dep.file}\n`;
                 comment += `Role: ${dep.role}\n`;
@@ -115,7 +115,7 @@ jobs:
                 comment += '```\n\n';
               });
 
-              entity.transitive_dependent.forEach(dep => {
+              entity.transitive_dependents.forEach(dep => {
                 comment += `### ${dep.name} (${dep.type})\n`;
                 comment += `File: ${dep.file}\n`;
                 comment += `Role: ${dep.role}\n`;
