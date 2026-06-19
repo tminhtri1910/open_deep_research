@@ -47,8 +47,45 @@ jobs:
         env: 
           DIFF_OUTPUT: ${{ steps.diff.outputs.diff_output }}
         run: |
-          sem impact "Configuration" --file "src/open_deep_research/configuration.py" --json > data.json 
+          echo "[" > data.json
+          first=true
           
+          jq -c '.changes[]' diff.json | while read -r change; do  
+            entity_name=$(echo "$change" | jq -r '.entityName')  
+            file_path=$(echo "$change" | jq -r '.filePath')  
+              
+            if sem context "$entity_name" --file "$file_path" --json > context.json; then  
+              direct_deps=$(jq '[.entries[] | select(.role == "direct_dependent")]' context.json)
+
+              # Xử lý từng direct_dependent 
+              echo "$direct_deps" | jq -c '.[]' | while read -r direct_dep; do  
+                dep_name=$(echo "$direct_dep" | jq -r '.name')  
+                dep_file=$(echo "$direct_dep" | jq -r '.file') 
+
+                if sem context "$dep_name" --file "$dep_file" --json > transitive_context.json; then  
+                  # Lọc transitive_dependents và thêm trường parent  
+                  transitive_deps=$(jq '[.entries[] | select(.role == "direct_dependent") | . + {"parent": "'"$dep_name"'"}]' transitive_context.json)
+
+                  if [ "$transitive_deps" != "[]" ]; then  
+                    if [ "$first" = true ]; then  
+                      first=false  
+                    else  
+                      echo "," >> data.json  
+                    fi  
+                    jq -n --arg name "$entity_name" --arg path "$file_path" --argjson direct "$direct_dep" --argjson transitive "$transitive_deps" \  
+                      '{entityName: $name, filePath: $path, direct_dependent: $direct, transitive_dependents: $transitive}' >> data.json
+                  fi
+                fi
+            done
+
+            else  
+              echo "Failed to get context for $entity_name in $file_path" >&2  
+              cat context.json >&2  
+            fi
+
+          done
+          
+          echo "]" >> data.json
 
           # Expose the JSON data as a step output variable
           echo "dependents_data<<EOF" >> $GITHUB_OUTPUT
@@ -67,10 +104,20 @@ jobs:
             
             data.forEach(entity => {
               comment += `## ${entity.entityName} (${entity.filePath})\n\n`;
-              entity.dependents.forEach(dep => {
+              entity.direct_dependent.forEach(dep => {
                 comment += `### ${dep.name} (${dep.type})\n`;
                 comment += `File: ${dep.file}\n`;
                 comment += `Role: ${dep.role}\n`;
+                comment += '```\n';
+                comment += `${dep.content}\n`;
+                comment += '```\n\n';
+              });
+
+              entity.transitive_dependent.forEach(dep => {
+                comment += `### ${dep.name} (${dep.type})\n`;
+                comment += `File: ${dep.file}\n`;
+                comment += `Role: ${dep.role}\n`;
+                comment += `Parent: ${dep.parent}\n`;
                 comment += '```\n';
                 comment += `${dep.content}\n`;
                 comment += '```\n\n';
