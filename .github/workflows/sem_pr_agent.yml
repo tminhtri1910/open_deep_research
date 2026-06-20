@@ -3,8 +3,8 @@ name: PR Impact Analysis (sem + pr-agent)
 
 # Trigger the workflow on pull requests targeting the 'main' branch
 on:
-  # pull_request:
-  #   types: [opened, reopened, ready_for_review]
+  pull_request:
+    types: [opened, reopened, ready_for_review]
 
 permissions:
   pull-requests: write
@@ -52,23 +52,42 @@ jobs:
           echo "[" > data.json
           first=true
           
-          jq -c '.changes[]' diff.json | while read -r change; do  
+          while read -r change; do  
             entity_name=$(echo "$change" | jq -r '.entityName')  
             file_path=$(echo "$change" | jq -r '.filePath')  
               
-            if sem context "$entity_name" --file "$file_path" --json > context.json 2>/dev/null; then  
-              deps=$(jq '[.entries[] | select(.role == "direct_dependent" or .role == "transitive_dependent")]' context.json)
-              
-              if [ "$deps" != "[]" ]; then
-                if [ "$first" = true ]; then
-                  first=false
-                else
-                  echo "," >> data.json
-                fi
-                jq -n --arg name "$entity_name" --arg path "$file_path" --argjson deps "$deps" '{entityName: $name, filePath: $path, dependents: $deps}' >> data.json
+            if sem context "$entity_name" --file "$file_path" --json > context.json; then  
+              direct_deps=$(jq '[.entries[] | select(.role == "direct_dependent")]' context.json)
+
+              # Kiểm tra nếu direct_deps không rỗng trước khi loop  
+              if [ -n "$direct_deps" ] && [ "$direct_deps" != "[]" ]; then 
+                # Xử lý từng direct_dependent 
+                while read -r direct_dep; do  
+                  dep_name=$(echo "$direct_dep" | jq -r '.name')  
+                  dep_file=$(echo "$direct_dep" | jq -r '.file') 
+
+                  if sem context "$dep_name" --file "$dep_file" --json > transitive_context.json; then  
+                    # Lọc transitive_dependents và thêm trường parent  
+                    transitive_deps=$(jq '[.entries[] | select(.role == "direct_dependent") | . + {"parent": "'"$dep_name"'"}]' transitive_context.json)
+
+                    if [ -n "$transitive_deps" ] && [ "$transitive_deps" != "[]" ]; then  
+                      if [ "$first" = true ]; then  
+                        first=false  
+                      else  
+                        echo "," >> data.json  
+                      fi  
+                      jq -n --arg name "$entity_name" --arg path "$file_path" --argjson direct "$direct_deps" --argjson transitive "$transitive_deps" '{entityName: $name, filePath: $path, direct_dependents: $direct, transitive_dependents: $transitive}' >> data.json
+                    fi
+                  fi
+                done < <(echo "$direct_deps" | jq -c '.[]')
               fi
-            fi 
-          done
+
+            else  
+              echo "Failed to get context for $entity_name in $file_path" >&2  
+              cat context.json >&2  
+            fi
+
+          done < <(jq -c '.changes[]' diff.json)
           
           echo "]" >> data.json
 
@@ -98,10 +117,20 @@ jobs:
             
             data.forEach(entity => {
               comment += `## ${entity.entityName} (${entity.filePath})\n\n`;
-              entity.dependents.forEach(dep => {
+              entity.direct_dependents.forEach(dep => {
                 comment += `### ${dep.name} (${dep.type})\n`;
                 comment += `File: ${dep.file}\n`;
                 comment += `Role: ${dep.role}\n`;
+                comment += '```\n';
+                comment += `${dep.content}\n`;
+                comment += '```\n\n';
+              });
+
+              entity.transitive_dependents.forEach(dep => {
+                comment += `### ${dep.name} (${dep.type})\n`;
+                comment += `File: ${dep.file}\n`;
+                comment += `Role: transitive_dependent\n`;
+                comment += `Parent: ${dep.parent}\n`;
                 comment += '```\n';
                 comment += `${dep.content}\n`;
                 comment += '```\n\n';
